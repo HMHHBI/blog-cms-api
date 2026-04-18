@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Http\Resources\PostResource;
 use App\Http\Requests\StorePostRequest;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -36,7 +37,7 @@ class PostController extends Controller
         }
 
         $post = Post::create([
-            'user_id' => $request->user()->id(), // ✅ Token se user ID mil jayegi
+            'user_id' => $request->user()->id, // ✅ Token se user ID mil jayegi
             'category_id' => $validated['category_id'],
             'title' => $validated['title'],
             'slug' => Str::slug($validated['title']) . '-' . rand(100, 999),
@@ -65,26 +66,24 @@ class PostController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Post $post)
+    public function update(StorePostRequest $request, Post $post)
     {
-        // Authorization check
-        if ($request->user()->id !== $post->user_id) {
-            return response()->json(['message' => 'Not Authorized'], 403);
-        }
+        $validated = $request->validated();
 
-        // Validation
-        $validated = $request->validate([
-            'title' => 'sometimes|string|max:255',
-            'content' => 'sometimes|string',
-            'category_id' => 'sometimes|exists:categories,id',
-            'image' => 'nullable|image|max:2048',
-        ]);
-
-        // Image handle karein agar nayi aayi hai
+        // 1. Image Handling (Agar nayi image aayi hai)
         if ($request->hasFile('image')) {
+            // Purani image delete karein
+            if ($post->image) {
+                Storage::disk('public')->delete($post->image);
+            }
+            // Nayi image store karein
             $validated['image'] = $request->file('image')->store('posts', 'public');
         }
 
+        // 2. Slug update (Optional: agar title badla hai)
+        $validated['slug'] = Str::slug($validated['title']) . '-' . rand(100, 999);
+
+        // 3. Update Database
         $post->update($validated);
 
         return response()->json([
@@ -103,6 +102,7 @@ class PostController extends Controller
             return response()->json(['message' => 'Aap dusre ki post delete nahi kar sakte!'], 403);
         }
 
+        // Database se record delete karein
         $post->delete();
 
         return response()->json(['message' => 'Post delete kar di gayi hai.']);
