@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => ['https://blog-cms-frontend-omega.vercel.app'],
 
     'allowed_origins_patterns' => [],
 
